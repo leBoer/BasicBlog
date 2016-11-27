@@ -1,10 +1,6 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <a href="/newpost" title="newpost">Add new post</a>
-    <a href="/signup" title="signup">Signup new user</a>
-    <a href="/login" title="login">Login</a>
-
     {% for blog in blogposts %}
         <div class="blog">
             <div class="blog-heading">
@@ -14,6 +10,7 @@
 
                 <div class="blog-date">
                     {{blog.created.strftime("%b %d, %Y")}}
+                    <a href="/{{blog.key().id()}}">ID</a>
                 </div>
             </div>
             

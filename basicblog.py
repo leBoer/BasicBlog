@@ -99,8 +99,7 @@ class User(db.Model):
         pw_hash = make_pw_hash(username, password)
         return User(username=username,
                     pw_hash=pw_hash,
-                    email=email
-                    )
+                    email=email)
 
     @classmethod
     def login(cls, username):
@@ -108,12 +107,14 @@ class User(db.Model):
 
 
 class MainPage(Handler):
-    def render_front(self, subject="", content="", error="", created=""):
+    def render_front(self, subject="", content="",
+                     error="", created="", post_id=""):
         blogposts = db.GqlQuery("SELECT * FROM Blog "
                                 "ORDER BY created DESC ")
 
         self.render("front.html", subject=subject, content=content,
-                    error=error, created=created, blogposts=blogposts)
+                    error=error, created=created, blogposts=blogposts,
+                    ID=post_id)
 
     def get(self):
         self.render_front()
