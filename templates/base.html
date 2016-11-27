@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Basic Blog</title>
+		<link rel="stylesheet" type="text/css" href="/static/main.css" />
+	</head>
+	
+	<body>
+		<a href="/" class="main-title">
+			Basic Blog
+		</a>
+		<a href="/logout">Logout</a>
+		
+		<div id="content">
+		{% block content %}
+		{% endblock %}
+		</div>
+		
+	</body>
+</html>
