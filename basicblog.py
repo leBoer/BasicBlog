@@ -55,6 +55,7 @@ class Blog(db.Model):
     subject = db.StringProperty(required=True)
     content = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
+    author = db.StringProperty(required=True)
 
     def render(self):
         self._render_text = self.content.replace('\n', '<br>')
@@ -114,7 +115,7 @@ class MainPage(Handler):
 
         self.render("front.html", subject=subject, content=content,
                     error=error, created=created, blogposts=blogposts,
-                    ID=post_id)
+                    post_id=post_id)
 
     def get(self):
         self.render_front()
@@ -127,11 +128,17 @@ class BlogPage(Handler):
     def post(self):
         subject = self.request.get("subject")
         content = self.request.get("content")
-
-        if subject and content:
-            a = Blog(subject=subject, content=content)
+        author_hash = self.request.cookies.get('username')
+        # Checks if the user is signed in
+        if check_secure_val(author_hash) and subject and content:
+            author = author_hash.split('|')[0]
+            a = Blog(subject=subject, content=content, author=author)
             a.put()
             self.redirect('/%s' % str(a.key().id()))
+        elif not check_secure_val(author_hash):
+            error = "You need to log in to post!"
+            self.render("newpost.html",
+                        error=error)
         else:
             error = "subject and content, please!"
             self.render("newpost.html",
