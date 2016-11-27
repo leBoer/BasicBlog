@@ -11,7 +11,8 @@
                 <div class="blog-date">
                     {{blog.author}}
                     {{blog.created.strftime("%b %d, %Y")}}
-                    <a href="/{{blog.key().id()}}">ID</a>
+                    <a href="/{{blog.key().id()}}">Permalink</a>
+                    <a href="/edit/{{blog.key().id()}}">Edit</a>
                 </div>
             </div>
             

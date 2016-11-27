@@ -126,8 +126,8 @@ class BlogPage(Handler):
         self.render('/newpost.html')
 
     def post(self):
-        subject = self.request.get("subject")
-        content = self.request.get("content")
+        subject = self.request.get('subject')
+        content = self.request.get('content')
         author_hash = self.request.cookies.get('username')
         # Checks if the user is signed in
         if check_secure_val(author_hash) and subject and content:
@@ -263,11 +263,44 @@ class LogoutHandler(Handler):
                                          'username=; Path=/')
         self.redirect('/signup')
 
+
+class EditHandler(BlogPage):
+    def get(self, url):
+        url = self.request.path
+        post_id = url.split('/')[2]
+        p = Blog.get_by_id(int(post_id))
+        subject = p.subject
+        content = p.content
+        author = p.author
+        self.render('/newpost.html',
+                    subject=subject,
+                    content=content,
+                    author=author,
+                    post_id=post_id)
+
+    def post(self, url):
+        subject = self.request.get('subject')
+        content = self.request.get('content')
+        url = self.request.path
+        post_id = url.split('/')[2]
+        p = Blog.get_by_id(int(post_id))
+        p.subject = subject
+        p.content = content
+        p.put()
+        self.render("permalink.html",
+                    p=p,
+                    post_id=post_id,
+                    subject=subject,
+                    content=content,
+                    )
+
+
 app = webapp2.WSGIApplication([('/', MainPage),
                                ('/newpost', BlogPage),
                                ('/signup', SignupPage),
                                ('/welcome', WelcomePage),
                                ('/login', LoginPage),
                                ('/logout', LogoutHandler),
+                               ('/edit/([0-9]+)', EditHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)
