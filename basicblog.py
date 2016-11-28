@@ -6,6 +6,7 @@ import hmac
 import hashlib
 import random
 from string import letters
+import time
 
 from google.appengine.ext import db
 
@@ -75,6 +76,11 @@ class Handler(webapp2.RequestHandler):
 
     def logout(self):
         self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
+
+    def fetch_post_and_id(self):
+        url = self.request.path
+        self.post_id = url.split('/')[2]
+        self.p = Blog.get_by_id(int(self.post_id))
 
 
 class Blog(db.Model):
@@ -157,10 +163,10 @@ class BlogPage(Handler):
     def post(self):
         subject = self.request.get('subject')
         content = self.request.get('content')
-        author_hash = self.request.cookies.get('username')
+        author_hash = self.request.cookies.get('user_id')
         # Checks if the user is signed in
         if check_secure_val(author_hash) and subject and content:
-            author = author_hash.split('|')[0]
+            author = self.username
             a = Blog(subject=subject, content=content, author=author)
             a.put()
             self.redirect('/%s' % str(a.key().id()))
@@ -221,7 +227,7 @@ class SignupPage(Handler):
            and self.valid_verify(password, verify)):
                 new_cookie_user = make_secure_val(str(username))
                 self.response.headers.add_header('Set-Cookie',
-                                                 'username=%s'
+                                                 'user_id=%s'
                                                  % new_cookie_user)
                 u = User.by_name(username)
                 if u:
@@ -260,10 +266,10 @@ class SignupPage(Handler):
 
 class WelcomePage(Handler):
     def get(self):
-        username_hash = self.request.cookies.get('username')
+        username_hash = self.request.cookies.get('user_id')
         if check_secure_val(username_hash):
-            username = username_hash.split('|')[0]
-            self.render('welcome.html', username=username)
+            user_id = username_hash.split('|')[0]
+            self.render('welcome.html', username=user_id)
         else:
             self.redirect('/signup')
 
@@ -291,21 +297,18 @@ class LogoutHandler(Handler):
         self.redirect('/')
 
 
-class EditHandler(BlogPage):
+class EditHandler(Handler):
     def get(self, url):
-        url = self.request.path
-        post_id = url.split('/')[2]
-        p = Blog.get_by_id(int(post_id))
-
-        if self.user.username == p.author:
-            subject = p.subject
-            content = p.content
-            author = p.author
+        self.fetch_post_and_id()
+        if self.user.username == self.p.author:
+            subject = self.p.subject
+            content = self.p.content
+            author = self.p.author
             self.render('/newpost.html',
                         subject=subject,
                         content=content,
                         author=author,
-                        post_id=post_id,
+                        post_id=self.post_id,
                         user=self.username)
         else:
             self.redirect('/')
@@ -327,12 +330,28 @@ class EditHandler(BlogPage):
                     )
 
 
-app = webapp2.WSGIApplication([('/', MainPage),
+class DeleteHandler(Handler):
+    def get(self, url):
+        self.fetch_post_and_id()
+        if self.user.username == self.p.author:
+            url = self.request.path
+            post_id = url.split('/')[2]
+            p = Blog.get_by_id(int(post_id))
+            p.delete()
+# Sleep for 0.5 seconds, giving the db time to update before redirecting
+            time.sleep(0.5)
+            self.redirect('/')
+        else:
+            self.redirect('/')
+
+
+app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/newpost', BlogPage),
                                ('/signup', SignupPage),
                                ('/welcome', WelcomePage),
                                ('/login', LoginPage),
                                ('/logout', LogoutHandler),
                                ('/edit/([0-9]+)', EditHandler),
+                               ('/delete/([0-9]+)', DeleteHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)

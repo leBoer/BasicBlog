@@ -14,6 +14,7 @@
                     <a href="/{{blog.key().id()}}">Permalink</a>
                     {% if blog.author == user %}
                         <a href="/edit/{{blog.key().id()}}">Edit</a>
+                        <a href="/delete/{{blog.key().id()}}">Delete</a>
                     {% endif%}
                 </div>
             </div>
