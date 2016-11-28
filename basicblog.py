@@ -65,6 +65,11 @@ class Handler(webapp2.RequestHandler):
         uid = self.read_secure_cookie('user_id')
         self.user = uid and User.by_id(int(uid))
 
+        if self.user:
+            self.username = self.user.username
+        else:
+            self.username = None
+
     def login(self, user):
         self.set_secure_cookie('user_id', str(user.key().id()))
 
@@ -135,14 +140,10 @@ class MainPage(Handler):
                      error="", created="", post_id=""):
         blogposts = db.GqlQuery("SELECT * FROM Blog "
                                 "ORDER BY created DESC ")
-        if self.user:
-            user = self.user.username
-        else:
-            user = None
 
         self.render("front.html", subject=subject, content=content,
                     error=error, created=created, blogposts=blogposts,
-                    post_id=post_id, user=user)
+                    post_id=post_id, user=self.username)
 
     def get(self):
         self.render_front()
@@ -150,7 +151,8 @@ class MainPage(Handler):
 
 class BlogPage(Handler):
     def get(self):
-        self.render('/newpost.html')
+        self.render('/newpost.html',
+                    user=self.username)
 
     def post(self):
         subject = self.request.get('subject')
@@ -171,7 +173,8 @@ class BlogPage(Handler):
             self.render("newpost.html",
                         subject=subject,
                         content=content,
-                        error=error)
+                        error=error,
+                        user=self.username)
 
 
 class NewContentPage(Handler):
@@ -181,7 +184,8 @@ class NewContentPage(Handler):
                     post=post,
                     post_id=int(post_id),
                     subject=post.subject,
-                    content=post.content)
+                    content=post.content,
+                    user=self.username)
 
 
 class SignupPage(Handler):
@@ -203,7 +207,8 @@ class SignupPage(Handler):
             return True
 
     def get(self):
-        self.render('signup.html')
+        self.render('signup.html',
+                    user=self.username)
 
     def post(self):
         username = self.request.get("username")
@@ -300,11 +305,10 @@ class EditHandler(BlogPage):
                         subject=subject,
                         content=content,
                         author=author,
-                        post_id=post_id)
+                        post_id=post_id,
+                        user=self.username)
         else:
-            msg = "You har not the author of this post"
-            self.render('front.html',
-                        msg=msg)
+            self.redirect('/')
 
     def post(self, url):
         subject = self.request.get('subject')

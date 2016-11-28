@@ -12,7 +12,9 @@
                     {{blog.author}}
                     {{blog.created.strftime("%b %d, %Y")}}
                     <a href="/{{blog.key().id()}}">Permalink</a>
-                    <a href="/edit/{{blog.key().id()}}">Edit</a>
+                    {% if blog.author == user %}
+                        <a href="/edit/{{blog.key().id()}}">Edit</a>
+                    {% endif%}
                 </div>
             </div>
             
