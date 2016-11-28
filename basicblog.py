@@ -50,6 +50,27 @@ class Handler(webapp2.RequestHandler):
     def render(self, template, **kw):
         self.write(self.render_str(template, **kw))
 
+    def set_secure_cookie(self, username, val):
+        cookie_val = make_secure_val(val)
+        self.response.headers.add_header(
+            'Set-Cookie',
+            '%s=%s; Path=/' % (username, cookie_val))
+
+    def read_secure_cookie(self, username):
+        cookie_val = self.request.cookies.get(username)
+        return cookie_val and check_secure_val(cookie_val)
+
+    def initialize(self, *a, **kw):
+        webapp2.RequestHandler.initialize(self, *a, **kw)
+        uid = self.read_secure_cookie('user_id')
+        self.user = uid and User.by_id(int(uid))
+
+    def login(self, user):
+        self.set_secure_cookie('user_id', str(user.key().id()))
+
+    def logout(self):
+        self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
+
 
 class Blog(db.Model):
     subject = db.StringProperty(required=True)
@@ -103,8 +124,10 @@ class User(db.Model):
                     email=email)
 
     @classmethod
-    def login(cls, username):
-        return username
+    def login(cls, username, pw):
+        u = cls.by_name(username)
+        if u and valid_pw(username, pw, u.pw_hash):
+            return u
 
 
 class MainPage(Handler):
@@ -112,10 +135,14 @@ class MainPage(Handler):
                      error="", created="", post_id=""):
         blogposts = db.GqlQuery("SELECT * FROM Blog "
                                 "ORDER BY created DESC ")
+        if self.user:
+            user = self.user.username
+        else:
+            user = None
 
         self.render("front.html", subject=subject, content=content,
                     error=error, created=created, blogposts=blogposts,
-                    post_id=post_id)
+                    post_id=post_id, user=user)
 
     def get(self):
         self.render_front()
@@ -243,25 +270,20 @@ class LoginPage(Handler):
     def post(self):
         username = self.request.get('username')
         password = self.request.get('password')
-        u = User.by_name(username)
+
+        u = User.login(username, password)
         if u:
-            h = u.pw_hash
-        if (not u or not valid_pw(username, password, h)):
-                usermsg = 'Username or password wrong'
-                self.render('login.html', usermsg=usermsg)
+            self.login(u)
+            self.redirect('/')
         else:
-            new_cookie_user = make_secure_val(str(username))
-            self.response.headers.add_header('Set-Cookie',
-                                             'username=%s; Path=/'
-                                             % (new_cookie_user))
-            self.redirect('/welcome')
+            msg = 'Invalid login'
+            self.render('login.html', error=msg)
 
 
 class LogoutHandler(Handler):
     def get(self):
-        self.response.headers.add_header('Set-Cookie',
-                                         'username=; Path=/')
-        self.redirect('/signup')
+        self.logout()
+        self.redirect('/')
 
 
 class EditHandler(BlogPage):
@@ -269,14 +291,20 @@ class EditHandler(BlogPage):
         url = self.request.path
         post_id = url.split('/')[2]
         p = Blog.get_by_id(int(post_id))
-        subject = p.subject
-        content = p.content
-        author = p.author
-        self.render('/newpost.html',
-                    subject=subject,
-                    content=content,
-                    author=author,
-                    post_id=post_id)
+
+        if self.user.username == p.author:
+            subject = p.subject
+            content = p.content
+            author = p.author
+            self.render('/newpost.html',
+                        subject=subject,
+                        content=content,
+                        author=author,
+                        post_id=post_id)
+        else:
+            msg = "You har not the author of this post"
+            self.render('front.html',
+                        msg=msg)
 
     def post(self, url):
         subject = self.request.get('subject')

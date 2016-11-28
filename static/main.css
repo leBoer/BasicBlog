@@ -117,3 +117,19 @@ input[type=submit] {
     color: gray;
     font-size: 12px;
 }
+
+.links {
+    float: left;
+    width: 50%;
+}
+
+.login {
+    float: right;
+    width: 50%;
+    text-align: right;
+}
+
+.nav-bar {
+    margin: 10px 0 70px 0;
+    position: relative;
+}

@@ -6,13 +6,23 @@
 	</head>
 	
 	<body>
-		<a href="/" class="main-title">
-			Basic Blog
-		</a>
-		<a href="/newpost" title="newpost">Add new post</a>
-    	<a href="/signup" title="signup">Signup new user</a>
-    	<a href="/login" title="login">Login</a>
-		<a href="/logout" title="logout">Logout</a>
+		<div class="nav-bar">
+			<a href="/" class="main-title">Basic Blog</a>
+			<div class="links">
+				<a href="/newpost" title="newpost">Add new post</a>
+	    		<a href="/signup" title="signup">Signup new user</a>	
+			</div>
+
+			<div class="login">
+			{% if user %}
+				Logged in as {{user}}
+				<a href="/logout" title="logout">Logout</a>
+			{% else %}
+				<a href="/login" title="login">Login</a>
+			{% endif %}
+			</div>
+		</div>
+		
 		
 		<div id="content">
 		{% block content %}
