@@ -90,6 +90,7 @@ class Blog(db.Model):
     author = db.StringProperty(required=True)
     likes = db.IntegerProperty(required=True)
     liked_by = db.ListProperty(str)
+    number_of_comments = db.IntegerProperty(required=True)
 
     def render(self):
         self._render_text = self.content.replace('\n', '<br>')
@@ -173,7 +174,8 @@ class BlogPage(Handler):
                      content=content,
                      author=author,
                      likes=0,
-                     liked_by=[])
+                     liked_by=[],
+                     number_of_comments=0)
             a.put()
             self.redirect('/%s' % str(a.key().id()))
         elif not check_secure_val(author_hash):
@@ -373,6 +375,49 @@ class UnlikeHandler(Handler):
             self.render('test.html',
                         error="something went wrong")
 
+
+class Comment(db.Model):
+    username = db.StringProperty(required=True)
+    comment = db.TextProperty(required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+    post = db.ReferenceProperty(Blog, collection_name='comments')
+
+
+class CommentHandler(Handler):
+    def render_comments(self,
+                        comment="",
+                        created="",
+                        post_id=""):
+        blogcomments = db.GqlQuery("SELECT * FROM Comment "
+                                   "ORDER BY created DESC ")
+        self.fetch_post_and_id()
+        self.render("comments.html",
+                    subject=self.p.subject,
+                    content=self.p.content,
+                    comment=comment,
+                    created=created,
+                    blogcomments=blogcomments,
+                    post_id=self.post_id,
+                    user=self.username)
+
+    def get(self, url):
+        self.render_comments()
+
+    def post(self, url):
+        self.fetch_post_and_id()
+        comment = self.request.get('comment')
+        username = self.user.username
+        post_id = self.post_id
+        p = Blog.get_by_id(int(post_id))
+        p.number_of_comments += 1
+        c = Comment(username=username,
+                    comment=comment,
+                    post=p
+                    )
+        c.put()
+        p.put()
+        self.redirect('/comments/%s' % (post_id))
+
 app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/newpost', BlogPage),
                                ('/signup', Register),
@@ -382,5 +427,6 @@ app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/delete/([0-9]+)', DeleteHandler),
                                ('/like/([0-9]+)', LikeHandler),
                                ('/unlike/([0-9]+)', UnlikeHandler),
+                               ('/comments/([0-9]+)', CommentHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)

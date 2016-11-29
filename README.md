@@ -1,7 +1,7 @@
 # Features to implement
 - [x] Users should be able to delete their own posts
 - [x] Users can like/unlike others posts
-- [ ] Users can comment on posts
+- [x] Users can comment on posts
 - [ ] Users can only edit their own comments
 - [ ] Users can only delete their own comments
 

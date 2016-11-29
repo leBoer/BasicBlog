@@ -89,13 +89,17 @@ input[type=submit] {
 .blog-title {
     font-size: 24px;
     font-weight: bold;
-
     text-decoration: none;
     color: #333;
 }
 
+a {
+    text-decoration: none;
+}
+
 .blog-title:visisted {
     color: #333;
+    text-decoration: none;
 }
 
 .blog-date {

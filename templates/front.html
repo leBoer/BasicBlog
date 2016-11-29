@@ -5,14 +5,13 @@
         <div class="blog">
             <div class="blog-heading">
                 <div class="blog-title">
-                    {{blog.subject}}
+                    <a href="/{{blog.key().id()}}">{{blog.subject}}</a>
                 </div>
 
                 <div class="blog-date">
                     {{blog.author}}
                     {{blog.created.strftime("%b %d, %Y")}}
                     Likes: {{blog.likes}}
-                    <a href="/{{blog.key().id()}}">Permalink</a>
                     {% if blog.author == user %}
                         <a href="/edit/{{blog.key().id()}}">Edit</a>
                         <a href="/delete/{{blog.key().id()}}">Delete</a>
@@ -24,6 +23,7 @@
                             <a href="/unlike/{{blog.key().id()}}">Unlike</a>
                         {% endif %}
                     {% endif %}
+                    <a href="/comments/{{blog.key().id()}}">| {{blog.number_of_comments}} comments</a>
 
                 </div>
             </div>

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+	{% for comment in blogcomments %}
+    <div class="blog">
+    	<div class="blog-title">{{subject}}</div>
+        <pre class="blog-body">{{content | safe}}</pre>
+        <hr>
+        <label>
+        	<div class="comment-title">Comments</div>
+        </label>
+        <pre class="comment-body"><strong>{{comment.username}} @ {{comment.created.strftime("%b %d, %Y")}}:</strong> {{comment.comment | safe}}</pre>
+    </div>
+    {% endfor %}
+    <form method="post">
+	    <label>
+	        <div>Make a new comment:</div>
+	        <textarea name="comment"></textarea>
+	    </label>
+
+	    <div class="error">{{error}}</div>
+
+	    <input type="submit">
+	</form>
+
+{% endblock %}
