@@ -338,12 +338,28 @@ class DeleteHandler(Handler):
             post_id = url.split('/')[2]
             p = Blog.get_by_id(int(post_id))
             p.delete()
-# Sleep for 0.5 seconds, giving the db time to update before redirecting
+    # Sleep for 0.5 seconds, giving the db time to update before redirecting
             time.sleep(0.5)
             self.redirect('/')
         else:
             self.redirect('/')
 
+
+class Likes(db.Model):
+    username = db.ReferenceProperty(User, required=True)
+    post_id = db.ReferenceProperty(Blog, required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+
+
+class LikeHandler(Handler):
+    def get(self, url):
+        self.fetch_post_and_id()
+        if self.user.username and self.post_id:
+            l = Likes(username=self.user.username,
+                      post_id=self.post_id)
+            l.put()
+            time.sleep(0.5)
+            self.redirect('/')
 
 app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/newpost', BlogPage),
@@ -353,5 +369,6 @@ app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/logout', LogoutHandler),
                                ('/edit/([0-9]+)', EditHandler),
                                ('/delete/([0-9]+)', DeleteHandler),
+                               ('/like/([0-9]+)', LikeHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)
