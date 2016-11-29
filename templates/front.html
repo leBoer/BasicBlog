@@ -11,14 +11,20 @@
                 <div class="blog-date">
                     {{blog.author}}
                     {{blog.created.strftime("%b %d, %Y")}}
+                    Likes: {{blog.likes}}
                     <a href="/{{blog.key().id()}}">Permalink</a>
                     {% if blog.author == user %}
                         <a href="/edit/{{blog.key().id()}}">Edit</a>
                         <a href="/delete/{{blog.key().id()}}">Delete</a>
                     {% endif%}
                     {% if user and not blog.author == user %}
-                        <a href="/like/{{blog.key().id()}}">Like</a>
+                        {% if user not in blog.liked_by %}
+                            <a href="/like/{{blog.key().id()}}">Like</a>
+                        {% else %}
+                            <a href="/unlike/{{blog.key().id()}}">Unlike</a>
+                        {% endif %}
                     {% endif %}
+
                 </div>
             </div>
             

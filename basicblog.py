@@ -26,7 +26,7 @@ def hash_str(s):
 
 
 def make_secure_val(s):
-    return "%s|%s" % (s, hash_str(s))
+    return "%s|%s" % (s, hmac.new(SECRET, s).hexdigest())
 
 
 def check_secure_val(h):
@@ -88,6 +88,8 @@ class Blog(db.Model):
     content = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
     author = db.StringProperty(required=True)
+    likes = db.IntegerProperty(required=True)
+    liked_by = db.ListProperty(str)
 
     def render(self):
         self._render_text = self.content.replace('\n', '<br>')
@@ -167,7 +169,11 @@ class BlogPage(Handler):
         # Checks if the user is signed in
         if check_secure_val(author_hash) and subject and content:
             author = self.username
-            a = Blog(subject=subject, content=content, author=author)
+            a = Blog(subject=subject,
+                     content=content,
+                     author=author,
+                     likes=0,
+                     liked_by=[])
             a.put()
             self.redirect('/%s' % str(a.key().id()))
         elif not check_secure_val(author_hash):
@@ -194,8 +200,7 @@ class NewContentPage(Handler):
                     user=self.username)
 
 
-class SignupPage(Handler):
-
+class Signup(Handler):
     def valid_username(self, username):
         return USER_RE.match(username)
 
@@ -213,65 +218,55 @@ class SignupPage(Handler):
             return True
 
     def get(self):
-        self.render('signup.html',
-                    user=self.username)
+        self.render("signup.html")
 
     def post(self):
-        username = self.request.get("username")
-        email = self.request.get("email")
-        password = self.request.get("password")
-        verify = self.request.get("verify")
-        if (self.valid_username(username)
-           and self.valid_email(email)
-           and self.valid_password(password)
-           and self.valid_verify(password, verify)):
-                new_cookie_user = make_secure_val(str(username))
-                self.response.headers.add_header('Set-Cookie',
-                                                 'user_id=%s'
-                                                 % new_cookie_user)
-                u = User.by_name(username)
-                if u:
-                    msg = 'That user already exists.'
-                    self.render('signup.html', user_error=msg)
-                else:
-                    u = User.register(username=username,
-                                      password=password,
-                                      email=email)
-                    u.put()
-                    self.redirect('/welcome')
+        have_error = False
+        self.username = self.request.get('username')
+        self.password = self.request.get('password')
+        self.verify = self.request.get('verify')
+        self.email = self.request.get('email')
+
+        params = dict(username=self.username,
+                      email=self.email)
+
+        if not self.valid_username(self.username):
+            params['error_username'] = "That's not a valid username."
+            have_error = True
+
+        if not self.valid_password(self.password):
+            params['error_password'] = "That wasn't a valid password."
+            have_error = True
+        elif self.password != self.verify:
+            params['error_verify'] = "Your passwords didn't match."
+            have_error = True
+
+        if not self.valid_email(self.email):
+            params['error_email'] = "That's not a valid email."
+            have_error = True
+
+        if have_error:
+            self.render('signup.html', **params)
         else:
-            if not self.valid_username(username):
-                user_error = "That's not a valid username"
-            else:
-                user_error = ""
-            if not self.valid_password(password):
-                password_error = "That's not a valid password"
-            else:
-                password_error = ""
-            if email:
-                if not self.valid_email(email):
-                    email_error = "That's not a valid email"
-            else:
-                email_error = ""
-            if not self.valid_verify(password, verify):
-                verify_error = "Your passwords didn't match"
-            else:
-                verify_error = ""
-            self.render("signup.html",
-                        user_error=user_error,
-                        password_error=password_error,
-                        email_error=email_error,
-                        verify_error=verify_error)
+            self.done()
+
+    def done(self, *a, **kw):
+        raise NotImplementedError
 
 
-class WelcomePage(Handler):
-    def get(self):
-        username_hash = self.request.cookies.get('user_id')
-        if check_secure_val(username_hash):
-            user_id = username_hash.split('|')[0]
-            self.render('welcome.html', username=user_id)
+class Register(Signup):
+    def done(self):
+        # make sure the user doesn't already exist
+        u = User.by_name(self.username)
+        if u:
+            msg = 'That user already exists.'
+            self.render('signup.html', error_username=msg)
         else:
-            self.redirect('/signup')
+            u = User.register(self.username, self.password, self.email)
+            u.put()
+
+            self.login(u)
+            self.redirect('/')
 
 
 class LoginPage(Handler):
@@ -345,30 +340,47 @@ class DeleteHandler(Handler):
             self.redirect('/')
 
 
-class Likes(db.Model):
-    username = db.ReferenceProperty(User, required=True)
-    post_id = db.ReferenceProperty(Blog, required=True)
-    created = db.DateTimeProperty(auto_now_add=True)
-
-
 class LikeHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        if self.user.username and self.post_id:
-            l = Likes(username=self.user.username,
-                      post_id=self.post_id)
-            l.put()
+        p = Blog.get_by_id(int(self.post_id))
+        if (self.user.username
+           and self.post_id
+           and self.user.username not in p.liked_by):
+            p.likes += 1
+            p.liked_by.append(self.user.username)
+            p.put()
             time.sleep(0.5)
             self.redirect('/')
+        else:
+            self.render('test.html',
+                        error="something went wrong")
+
+
+class UnlikeHandler(Handler):
+    def get(self, url):
+        self.fetch_post_and_id()
+        p = Blog.get_by_id(int(self.post_id))
+        if (self.user.username
+           and self.post_id
+           and self.user.username in p.liked_by):
+            p.likes -= 1
+            p.liked_by.remove(self.user.username)
+            p.put()
+            time.sleep(0.5)
+            self.redirect('/')
+        else:
+            self.render('test.html',
+                        error="something went wrong")
 
 app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/newpost', BlogPage),
-                               ('/signup', SignupPage),
-                               ('/welcome', WelcomePage),
+                               ('/signup', Register),
                                ('/login', LoginPage),
                                ('/logout', LogoutHandler),
                                ('/edit/([0-9]+)', EditHandler),
                                ('/delete/([0-9]+)', DeleteHandler),
                                ('/like/([0-9]+)', LikeHandler),
+                               ('/unlike/([0-9]+)', UnlikeHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)
