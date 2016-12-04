@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-	{% for comment in blogcomments %}
+	
     <div class="blog">
     	<div class="blog-title">{{subject}}</div>
         <pre class="blog-body">{{content | safe}}</pre>
@@ -9,13 +9,25 @@
         <label>
         	<div class="comment-title">Comments</div>
         </label>
-        <pre class="comment-body"><strong>{{comment.username}} @ {{comment.created.strftime("%b %d, %Y")}}:</strong> {{comment.comment | safe}}</pre>
-    </div>
+	</div>
+
+	{% for comment in blogcomments %}
+    	<div class="comment-body">
+    		<strong>
+    			{{comment.username}} @ {{comment.created.strftime("%b %d, %Y")}}: 
+    		</strong>
+    		{{comment.comment}}
+    		{% if user and user == comment.username %}
+    		<a href="/edit_comment/{{post_id}}/{{comment.key().id()}}"> Edit</a>
+    		<a href="/delete_comment/{{post_id}}/{{comment.key().id()}}"> Delete</a>
+    		{% endif %}
+    	</div>
     {% endfor %}
+
     <form method="post">
 	    <label>
 	        <div>Make a new comment:</div>
-	        <textarea name="comment"></textarea>
+	        <textarea name="comment">{{new_comment}}</textarea>
 	    </label>
 
 	    <div class="error">{{error}}</div>

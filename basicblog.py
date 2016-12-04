@@ -82,6 +82,11 @@ class Handler(webapp2.RequestHandler):
         self.post_id = url.split('/')[2]
         self.p = Blog.get_by_id(int(self.post_id))
 
+    def fetch_comment_and_id(self):
+        url = self.request.path
+        self.comment_id = url.split('/')[3]
+        self.c = Comment.get_by_id(int(self.comment_id))
+
 
 class Blog(db.Model):
     subject = db.StringProperty(required=True)
@@ -220,7 +225,8 @@ class Signup(Handler):
             return True
 
     def get(self):
-        self.render("signup.html")
+        self.render("signup.html",
+                    user=self.username)
 
     def post(self):
         have_error = False
@@ -384,24 +390,24 @@ class Comment(db.Model):
 
 
 class CommentHandler(Handler):
-    def render_comments(self,
-                        comment="",
-                        created="",
-                        post_id=""):
+    def render_comments(self, new_comment):
         blogcomments = db.GqlQuery("SELECT * FROM Comment "
                                    "ORDER BY created DESC ")
         self.fetch_post_and_id()
-        self.render("comments.html",
+        if self.user:
+            username = self.user.username
+        else:
+            username = None
+        self.render('comments.html',
                     subject=self.p.subject,
                     content=self.p.content,
-                    comment=comment,
-                    created=created,
+                    new_comment=new_comment,
                     blogcomments=blogcomments,
                     post_id=self.post_id,
-                    user=self.username)
+                    user=username)
 
     def get(self, url):
-        self.render_comments()
+        self.render_comments(new_comment="")
 
     def post(self, url):
         self.fetch_post_and_id()
@@ -412,11 +418,43 @@ class CommentHandler(Handler):
         p.number_of_comments += 1
         c = Comment(username=username,
                     comment=comment,
-                    post=p
-                    )
+                    post=p)
         c.put()
         p.put()
+        time.sleep(0.5)
         self.redirect('/comments/%s' % (post_id))
+
+
+class EditCommentHandler(CommentHandler):
+    def get(self, url1, url2):
+        self.fetch_comment_and_id()
+        comment = self.c.comment
+        self.render_comments(comment)
+
+    def post(self, url1, url2):
+        self.fetch_comment_and_id()
+        self.fetch_post_and_id()
+        comment = self.request.get('comment')
+        self.c.comment = comment
+        self.c.put()
+        time.sleep(0.5)
+        self.redirect('/comments/%s' % (self.post_id))
+
+
+class DeleteCommentHandler(CommentHandler):
+    def get(self, url1, url2):
+        self.fetch_comment_and_id()
+        self.fetch_post_and_id()
+        if self.user.username == self.c.username:
+            self.c.delete()
+            self.p.number_of_comments -= 1
+            self.p.put()
+    # Sleep for 0.5 seconds, giving the db time to update before redirecting
+            time.sleep(0.5)
+            self.redirect('/comments/%s' % (self.post_id))
+        else:
+            self.redirect('/comments/%s' % (self.post_id))
+
 
 app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/newpost', BlogPage),
@@ -428,5 +466,7 @@ app = webapp2.WSGIApplication([('/*', MainPage),
                                ('/like/([0-9]+)', LikeHandler),
                                ('/unlike/([0-9]+)', UnlikeHandler),
                                ('/comments/([0-9]+)', CommentHandler),
+                               ('/edit_comment/([0-9]+)/([0-9]+)', EditCommentHandler),
+                               ('/delete_comment/([0-9]+)/([0-9]+)', DeleteCommentHandler),
                                ('/([0-9]+)', NewContentPage)],
                               debug=True)
