@@ -3,8 +3,30 @@
 {% block content %}
 <div class="login-form">
 	<form method="post">
-		<p>Username <input type="text" name="username">{{error}}</p>
-		<p>Password <input type="password" name="password"></p>
+		<table>
+			<tr>
+				<td class="label"">
+					Username
+				</td>
+			<td>
+				<input type="text" name="username" style="width: 150px; font-size: 15px">
+			</td>
+			</tr>
+
+			<tr>
+				<td class="label">
+					Password
+				</td>
+				<td>
+					<input type="password" name="password" style="width: 150px; font-size: 15px">
+				</td>
+			</tr>
+		</table>
+
+		<div class="error">
+			{{error}}
+		</div>
+
 		<br>
 		<button>Submit</button>
 	</form>

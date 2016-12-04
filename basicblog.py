@@ -65,7 +65,7 @@ class Handler(webapp2.RequestHandler):
         webapp2.RequestHandler.initialize(self, *a, **kw)
         uid = self.read_secure_cookie('user_id')
         self.user = uid and User.by_id(int(uid))
-
+        # Checks which user is logged in on each pageload
         if self.user:
             self.username = self.user.username
         else:
@@ -78,11 +78,13 @@ class Handler(webapp2.RequestHandler):
         self.response.headers.add_header('Set-Cookie', 'user_id=; Path=/')
 
     def fetch_post_and_id(self):
+        # Helper function to shorten the code when dealing with posts
         url = self.request.path
         self.post_id = url.split('/')[2]
         self.p = Blog.get_by_id(int(self.post_id))
 
     def fetch_comment_and_id(self):
+        # Helper function to shorten the code when dealing with comments
         url = self.request.path
         self.comment_id = url.split('/')[3]
         self.c = Comment.get_by_id(int(self.comment_id))
@@ -100,8 +102,6 @@ class Blog(db.Model):
     def render(self):
         self._render_text = self.content.replace('\n', '<br>')
         return render_str("permalink.html", p=self)
-
-# User section
 
 
 def make_salt(length=5):
@@ -239,18 +239,18 @@ class Signup(Handler):
                       email=self.email)
 
         if not self.valid_username(self.username):
-            params['error_username'] = "That's not a valid username."
+            params['user_error'] = "That's not a valid username."
             have_error = True
 
         if not self.valid_password(self.password):
-            params['error_password'] = "That wasn't a valid password."
+            params['password_error'] = "That wasn't a valid password."
             have_error = True
         elif self.password != self.verify:
-            params['error_verify'] = "Your passwords didn't match."
+            params['verify_error'] = "Your passwords didn't match."
             have_error = True
 
         if not self.valid_email(self.email):
-            params['error_email'] = "That's not a valid email."
+            params['email_error'] = "That's not a valid email."
             have_error = True
 
         if have_error:
@@ -268,7 +268,7 @@ class Register(Signup):
         u = User.by_name(self.username)
         if u:
             msg = 'That user already exists.'
-            self.render('signup.html', error_username=msg)
+            self.render('signup.html', error=msg)
         else:
             u = User.register(self.username, self.password, self.email)
             u.put()
@@ -304,32 +304,25 @@ class EditHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
         if self.user.username == self.p.author:
-            subject = self.p.subject
-            content = self.p.content
-            author = self.p.author
             self.render('/newpost.html',
-                        subject=subject,
-                        content=content,
-                        author=author,
+                        subject=self.p.subject,
+                        content=self.p.content,
+                        author=self.p.author,
                         post_id=self.post_id,
                         user=self.username)
         else:
             self.redirect('/')
 
     def post(self, url):
-        subject = self.request.get('subject')
-        content = self.request.get('content')
-        url = self.request.path
-        post_id = url.split('/')[2]
-        p = Blog.get_by_id(int(post_id))
-        p.subject = subject
-        p.content = content
-        p.put()
+        self.fetch_post_and_id()
+        self.p.subject = self.request.get('subject')
+        self.p.content = self.request.get('content')
+        self.p.put()
         self.render("permalink.html",
-                    p=p,
-                    post_id=post_id,
-                    subject=subject,
-                    content=content,
+                    p=self.p,
+                    post_id=self.post_id,
+                    subject=self.p.subject,
+                    content=self.p.content,
                     )
 
 
@@ -337,10 +330,7 @@ class DeleteHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
         if self.user.username == self.p.author:
-            url = self.request.path
-            post_id = url.split('/')[2]
-            p = Blog.get_by_id(int(post_id))
-            p.delete()
+            self.p.delete()
     # Sleep for 0.5 seconds, giving the db time to update before redirecting
             time.sleep(0.5)
             self.redirect('/')
@@ -351,13 +341,12 @@ class DeleteHandler(Handler):
 class LikeHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        p = Blog.get_by_id(int(self.post_id))
         if (self.user.username
            and self.post_id
-           and self.user.username not in p.liked_by):
-            p.likes += 1
-            p.liked_by.append(self.user.username)
-            p.put()
+           and self.user.username not in self.p.liked_by):
+            self.p.likes += 1
+            self.p.liked_by.append(self.user.username)
+            self.p.put()
             time.sleep(0.5)
             self.redirect('/')
         else:
@@ -368,13 +357,12 @@ class LikeHandler(Handler):
 class UnlikeHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        p = Blog.get_by_id(int(self.post_id))
         if (self.user.username
            and self.post_id
-           and self.user.username in p.liked_by):
-            p.likes -= 1
-            p.liked_by.remove(self.user.username)
-            p.put()
+           and self.user.username in self.p.liked_by):
+            self.p.likes -= 1
+            self.p.liked_by.remove(self.user.username)
+            self.p.put()
             time.sleep(0.5)
             self.redirect('/')
         else:
@@ -386,14 +374,16 @@ class Comment(db.Model):
     username = db.StringProperty(required=True)
     comment = db.TextProperty(required=True)
     created = db.DateTimeProperty(auto_now_add=True)
-    post = db.ReferenceProperty(Blog, collection_name='comments')
+    post_id = db.IntegerProperty(required=True)
 
 
 class CommentHandler(Handler):
-    def render_comments(self, new_comment):
-        blogcomments = db.GqlQuery("SELECT * FROM Comment "
-                                   "ORDER BY created DESC ")
+    def render_comments(self, new_comment, heading):
         self.fetch_post_and_id()
+        blogcomments = db.GqlQuery("SELECT * FROM Comment "
+                                   "WHERE post_id = %s "
+                                   "ORDER BY created DESC"
+                                   % (int(self.post_id)))
         if self.user:
             username = self.user.username
         else:
@@ -404,32 +394,35 @@ class CommentHandler(Handler):
                     new_comment=new_comment,
                     blogcomments=blogcomments,
                     post_id=self.post_id,
-                    user=username)
+                    heading=heading,
+                    count=self.p.number_of_comments,
+                    user=username,)
 
     def get(self, url):
-        self.render_comments(new_comment="")
+        self.render_comments(new_comment="",
+                             heading="Make a new comment")
 
     def post(self, url):
-        self.fetch_post_and_id()
-        comment = self.request.get('comment')
-        username = self.user.username
-        post_id = self.post_id
-        p = Blog.get_by_id(int(post_id))
-        p.number_of_comments += 1
-        c = Comment(username=username,
-                    comment=comment,
-                    post=p)
-        c.put()
-        p.put()
-        time.sleep(0.5)
-        self.redirect('/comments/%s' % (post_id))
+        if self.user:
+            self.fetch_post_and_id()
+            comment = self.request.get('comment')
+            self.p.number_of_comments += 1
+            c = Comment(username=self.user.username,
+                        comment=comment,
+                        post_id=int(self.post_id))
+            c.put()
+            self.p.put()
+            time.sleep(0.5)
+            self.redirect('/comments/%s' % (self.post_id))
+        else:
+            self.redirect('/login')
 
 
 class EditCommentHandler(CommentHandler):
     def get(self, url1, url2):
         self.fetch_comment_and_id()
-        comment = self.c.comment
-        self.render_comments(comment)
+        self.render_comments(self.c.comment,
+                             heading="Edit your comment")
 
     def post(self, url1, url2):
         self.fetch_comment_and_id()
@@ -437,6 +430,7 @@ class EditCommentHandler(CommentHandler):
         comment = self.request.get('comment')
         self.c.comment = comment
         self.c.put()
+        # Sleep for 0.5 seconds, giving the db time to update before redirect
         time.sleep(0.5)
         self.redirect('/comments/%s' % (self.post_id))
 
@@ -449,24 +443,25 @@ class DeleteCommentHandler(CommentHandler):
             self.c.delete()
             self.p.number_of_comments -= 1
             self.p.put()
-    # Sleep for 0.5 seconds, giving the db time to update before redirecting
+            # Sleep for 0.5 seconds
             time.sleep(0.5)
             self.redirect('/comments/%s' % (self.post_id))
         else:
             self.redirect('/comments/%s' % (self.post_id))
 
 
-app = webapp2.WSGIApplication([('/*', MainPage),
-                               ('/newpost', BlogPage),
-                               ('/signup', Register),
-                               ('/login', LoginPage),
-                               ('/logout', LogoutHandler),
-                               ('/edit/([0-9]+)', EditHandler),
-                               ('/delete/([0-9]+)', DeleteHandler),
-                               ('/like/([0-9]+)', LikeHandler),
-                               ('/unlike/([0-9]+)', UnlikeHandler),
-                               ('/comments/([0-9]+)', CommentHandler),
-                               ('/edit_comment/([0-9]+)/([0-9]+)', EditCommentHandler),
-                               ('/delete_comment/([0-9]+)/([0-9]+)', DeleteCommentHandler),
-                               ('/([0-9]+)', NewContentPage)],
-                              debug=True)
+app = webapp2.WSGIApplication([
+    ('/*', MainPage),
+    ('/newpost', BlogPage),
+    ('/signup', Register),
+    ('/login', LoginPage),
+    ('/logout', LogoutHandler),
+    ('/edit/([0-9]+)', EditHandler),
+    ('/delete/([0-9]+)', DeleteHandler),
+    ('/like/([0-9]+)', LikeHandler),
+    ('/unlike/([0-9]+)', UnlikeHandler),
+    ('/comments/([0-9]+)', CommentHandler),
+    ('/edit_comment/([0-9]+)/([0-9]+)', EditCommentHandler),
+    ('/delete_comment/([0-9]+)/([0-9]+)', DeleteCommentHandler),
+    ('/([0-9]+)', NewContentPage)],
+    debug=True)

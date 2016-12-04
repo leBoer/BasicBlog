@@ -6,9 +6,12 @@
     	<div class="blog-title">{{subject}}</div>
         <pre class="blog-body">{{content | safe}}</pre>
         <hr>
-        <label>
-        	<div class="comment-title">Comments</div>
-        </label>
+        {% if not count == 0 %}
+            <label>
+                <div class="comment-title">Comments:</div>
+            </label>
+            <br>
+        {% endif %}
 	</div>
 
 	{% for comment in blogcomments %}
@@ -18,21 +21,24 @@
     		</strong>
     		{{comment.comment}}
     		{% if user and user == comment.username %}
-    		<a href="/edit_comment/{{post_id}}/{{comment.key().id()}}"> Edit</a>
-    		<a href="/delete_comment/{{post_id}}/{{comment.key().id()}}"> Delete</a>
+	    		<a href="/edit_comment/{{post_id}}/{{comment.key().id()}}"> Edit</a>
+	    		<a href="/delete_comment/{{post_id}}/{{comment.key().id()}}"> Delete</a>
     		{% endif %}
     	</div>
     {% endfor %}
 
-    <form method="post">
-	    <label>
-	        <div>Make a new comment:</div>
-	        <textarea name="comment">{{new_comment}}</textarea>
-	    </label>
+    {% if user %}
+        <br>
+	    <form method="post">
+		    <label>
+		        <div>{{heading}}:</div>
+		        <textarea name="comment">{{new_comment}}</textarea>
+		    </label>
 
-	    <div class="error">{{error}}</div>
+		    <div class="error">{{error}}</div>
 
-	    <input type="submit">
-	</form>
+		    <input type="submit">
+		</form>
+	{% endif %}
 
 {% endblock %}
