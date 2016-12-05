@@ -7,18 +7,21 @@ from models.blog import Blog
 class NewContentPage(Handler):
     def get(self, post_id):
         post = Blog.get_by_id(int(post_id))
-        self.render('permalink.html',
-                    post=post,
-                    post_id=int(post_id),
-                    subject=post.subject,
-                    content=post.content,
-                    user=self.username)
+        if post:
+            self.render('permalink.html',
+                        post=post,
+                        post_id=int(post_id),
+                        subject=post.subject,
+                        content=post.content,
+                        user=self.username)
+        else:
+            self.redirect('/')
 
 
 class EditHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        if self.username and self.username == self.p.author:
+        if self.username and self.p and self.username == self.p.author:
             self.render('/newpost.html',
                         subject=self.p.subject,
                         content=self.p.content,

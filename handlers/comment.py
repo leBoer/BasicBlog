@@ -16,23 +16,26 @@ class CommentHandler(Handler):
             username = self.user.username
         else:
             username = None
-        self.render('comments.html',
-                    subject=self.p.subject,
-                    content=self.p.content,
-                    new_comment=new_comment,
-                    blogcomments=blogcomments,
-                    post_id=self.post_id,
-                    heading=heading,
-                    count=self.p.number_of_comments,
-                    user=username,)
+        if self.p:
+            self.render('comments.html',
+                        subject=self.p.subject,
+                        content=self.p.content,
+                        new_comment=new_comment,
+                        blogcomments=blogcomments,
+                        post_id=self.post_id,
+                        heading=heading,
+                        count=self.p.number_of_comments,
+                        user=username,)
+        else:
+            self.redirect('/')
 
     def get(self, url):
         self.render_comments(new_comment="",
                              heading="Make a new comment")
 
     def post(self, url):
-        if self.user:
-            self.fetch_post_and_id()
+        self.fetch_post_and_id()
+        if self.user and self.p:
             comment = self.request.get('comment')
             self.p.number_of_comments += 1
             c = Comment(username=self.user.username,
@@ -50,7 +53,8 @@ class CommentHandler(Handler):
 class EditCommentHandler(CommentHandler):
     def get(self, url1, url2):
         self.fetch_comment_and_id()
-        if self.user and self.username == self.c.username:
+        self.fetch_post_and_id()
+        if self.user and self.c and self.username == self.c.username:
             self.render_comments(self.c.comment,
                                  heading="Edit your comment")
         else:
@@ -59,7 +63,7 @@ class EditCommentHandler(CommentHandler):
     def post(self, url1, url2):
         self.fetch_comment_and_id()
         self.fetch_post_and_id()
-        if self.user and self.username == self.c.username:
+        if self.user and self.p and self.username == self.c.username:
             comment = self.request.get('comment')
             self.c.comment = comment
             self.c.put()
@@ -74,7 +78,7 @@ class DeleteCommentHandler(CommentHandler):
     def get(self, url1, url2):
         self.fetch_comment_and_id()
         self.fetch_post_and_id()
-        if self.username and self.user.username == self.c.username:
+        if self.username and self.c and self.user.username == self.c.username:
             self.c.delete()
             self.p.number_of_comments -= 1
             self.p.put()
