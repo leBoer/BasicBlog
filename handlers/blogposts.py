@@ -26,7 +26,7 @@ class EditHandler(Handler):
                         post_id=self.post_id,
                         user=self.username)
         else:
-            self.redirect('/')
+            self.redirect('/login')
 
     def post(self, url):
         self.fetch_post_and_id()
@@ -41,7 +41,7 @@ class EditHandler(Handler):
                         content=self.p.content,
                         )
         else:
-            self.redirect('/')
+            self.redirect('/login')
 
 
 class DeleteHandler(Handler):
@@ -53,4 +53,4 @@ class DeleteHandler(Handler):
             time.sleep(0.5)
             self.redirect('/')
         else:
-            self.redirect('/')
+            self.redirect('/login')

@@ -22,9 +22,7 @@ class BlogPage(Handler):
             a.put()
             self.redirect('/%s' % str(a.key().id()))
         elif not self.user:
-            error = "You need to log in to post!"
-            self.render("newpost.html",
-                        error=error)
+            self.redirect('/login')
         else:
             error = "subject and content, please!"
             self.render("newpost.html",

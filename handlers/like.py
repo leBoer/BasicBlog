@@ -6,7 +6,7 @@ from handlers import Handler
 class LikeHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        if (self.user.username
+        if (self.user
            and self.post_id
            and self.user.username not in self.p.liked_by):
             self.p.likes += 1
@@ -15,14 +15,13 @@ class LikeHandler(Handler):
             time.sleep(0.5)
             self.redirect('/')
         else:
-            self.render('test.html',
-                        error="something went wrong")
+            self.redirect('/login')
 
 
 class UnlikeHandler(Handler):
     def get(self, url):
         self.fetch_post_and_id()
-        if (self.user.username
+        if (self.user
            and self.post_id
            and self.user.username in self.p.liked_by):
             self.p.likes -= 1
@@ -31,5 +30,4 @@ class UnlikeHandler(Handler):
             time.sleep(0.5)
             self.redirect('/')
         else:
-            self.render('test.html',
-                        error="something went wrong")
+            self.redirect('/login')
