@@ -40,6 +40,7 @@ class CommentHandler(Handler):
                         post_id=int(self.post_id))
             c.put()
             self.p.put()
+            # Sleep for 0.5 seconds
             time.sleep(0.5)
             self.redirect('/comments/%s' % (self.post_id))
         else:
@@ -49,25 +50,31 @@ class CommentHandler(Handler):
 class EditCommentHandler(CommentHandler):
     def get(self, url1, url2):
         self.fetch_comment_and_id()
-        self.render_comments(self.c.comment,
-                             heading="Edit your comment")
+        if self.user and self.username == self.c.username:
+            self.render_comments(self.c.comment,
+                                 heading="Edit your comment")
+        else:
+            self.redirect('/login')
 
     def post(self, url1, url2):
         self.fetch_comment_and_id()
         self.fetch_post_and_id()
-        comment = self.request.get('comment')
-        self.c.comment = comment
-        self.c.put()
-        # Sleep for 0.5 seconds, giving the db time to update before redirect
-        time.sleep(0.5)
-        self.redirect('/comments/%s' % (self.post_id))
+        if self.user and self.username == self.c.username:
+            comment = self.request.get('comment')
+            self.c.comment = comment
+            self.c.put()
+            # Sleep for 0.5 seconds
+            time.sleep(0.5)
+            self.redirect('/comments/%s' % (self.post_id))
+        else:
+            self.redirect('/login')
 
 
 class DeleteCommentHandler(CommentHandler):
     def get(self, url1, url2):
         self.fetch_comment_and_id()
         self.fetch_post_and_id()
-        if self.user.username == self.c.username:
+        if self.username and self.user.username == self.c.username:
             self.c.delete()
             self.p.number_of_comments -= 1
             self.p.put()

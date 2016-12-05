@@ -14,7 +14,12 @@
         </label>
 
         <div class="error">{{error}}</div>
+        <div class="buttons-div">
+            <input type="submit">
+            {% if subject %}
+                <a href="/" class="button">Cancel</a>
+            {% endif %}
+        </div>
 
-        <input type="submit">
     </form>
 {% endblock %}

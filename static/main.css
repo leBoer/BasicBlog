@@ -44,6 +44,7 @@ textarea {
 
 input[type=submit] {
   font-size: 24px;
+  vertical-align: top;
 }
 
 .main-title {
@@ -116,3 +117,18 @@ a {
     margin: 10px 0 70px 0;
     position: relative;
 }
+
+.button {
+    -webkit-appearance: button;
+    -moz-appearance: button;
+    appearance: button;
+
+    text-decoration: none;
+    color: initial;
+    font-size: 24px;
+    height: 32px;
+    padding: 1px 6px;
+    vertical-align: text-bottom;
+    line-height: 33px;
+}
+
